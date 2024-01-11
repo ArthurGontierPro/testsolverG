@@ -39,7 +39,7 @@ function bb()
     return false                            # no values are valid
 end
 
-function filterimp(x,v)                    # filter the neighborhoods values
+function filterimp(x,v)                     # filter the neighborhoods values
     # println("   ",x," -> ",v)
     xn = Apatt[x]                           # get neighbors in pattern
     vn = Agraph[v]                          # get neighbors in graph
@@ -76,17 +76,17 @@ function filter()                           # call filtering algorithms
     global vars,awake
     printvars()
     print(" filtering ")
-    save = deepcopy((vars,awake))      # make a save of state
+    save = deepcopy((vars,awake))           # make a save of state
     while any(x->x,awake)
         x = findfirst(x->x,awake)
         if length(vars[x]) == 1
             if !filterneq(x,first(vars[x])) # call filtering algorithms
-                vars,awake = save      # revert state if filter fails
+                vars,awake = save           # revert state if filter fails
                 println("failed")
                 return false 
             end
             if !filterimp(x,first(vars[x])) # call filtering algorithms
-                vars,awake = save      # revert state if filter fails
+                vars,awake = save           # revert state if filter fails
                 println("failed")
                 return false 
             end

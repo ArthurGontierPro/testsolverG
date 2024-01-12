@@ -17,12 +17,14 @@ function adjarr(g,ub)
 end
 Apatt = adjarr(patt,ubx)                    # neighbors into pattern
 Agraph = adjarr(graph,ubv)                  # neighbors into graph
-function strat(x)                            # dumb strat to get next var to fix
+nboolctr = 2*ubx+ubv+ubv*sum([length(i) for i in Apatt])
+idctr = nboolctr
+function strat(x)                           # dumb strat to get next var to fix
     while x<=ubx if length(vars[x])==1 x+=1 else return x end end 
     return ubx+1
 end
 
-function bb(x,path)
+function bb(x,path,f)
     global vars,awake
     save = deepcopy((vars,awake))           # make a save of state
     if !filter() return false end           # call filtering
@@ -35,14 +37,14 @@ function bb(x,path)
         vars[x] = Set([v])
         awake[x] = true
         path[end] = (x,v)
-        if !bb(x,path)                      # recurcive call fo fix next var
-            printrup(path)
+        if !bb(x,path,f)                    # recurcive call fo fix next var
+            writerup(path,f)
             vars[x] = copy(tmpvar)
         else return true end                # we find a solution with this val
     end
     pop!(path)
     awake[x] = false
-    vars,awake = save               # revert state if filter fails
+    vars,awake = save                       # revert state if filter fails
     return false                            # no values are valid
 end
 
@@ -79,9 +81,7 @@ function filterneq(x,v)
     return true
 end
 
-function filter()                           # call filtering algorithms
-    global vars,awake
-    printvars()
+function filter()
     print(" filtering ")
     while any(x->x,awake)
         x = findfirst(x->x,awake)
@@ -98,7 +98,6 @@ function filter()                           # call filtering algorithms
         awake[x] = false
     end
     println("passed")
-    printvars()
     return true
 end
 
@@ -111,6 +110,14 @@ function printvars()
     println()
 end
 
+function writerup(path,f)
+    global idctr+=1
+    write(f,string("u"))
+    for (x,v) in path
+        write(f,string(" 1 ~x",x,"_",v))        
+    end
+    write(f,string(" >= 1 ;\n"))
+end
 function printrup(path)
     for (x,v) in path
         print(" 1 ~x",x,"_",v)
@@ -118,43 +125,51 @@ function printrup(path)
     println(" >= 1 ;")
 end
 
+path = "\\\\wsl.localhost\\Ubuntu\\home\\arthur_gla\\veriPB\\testsolver\\"
 println("==========================")
-if bb(lbx,[]) 
-    println("\n Yay a solutions !")
-    for x in rx
-        println("    X",x,"=", first(vars[x]))
+open(string(path,"test.pbp"),"w") do f
+    write(f,string("pseudo-Boolean proof version 1.0\n"))
+    write(f,string("f ",nboolctr,"\n"))
+    if bb(lbx,[],f) 
+        println("\n Yay a solutions !")
+        for x in rx
+            println("    X",x,"=", first(vars[x]))
+        end
+    else
+        println("\n Oh nooo, No solutions")
+        write(f,string("u >= 1 ;\n"))
+        write(f,string("c ",idctr+1))
     end
-else
-    println("\n Oh nooo, No solutions")
 end
 
 function writeopb()
-    println("* #variable= ",ubx," #constraint= ",2*ubx+ubv+ubv*sum([length(i) for i in Apatt]))
-    for x in rx
-        for v in rv
-            print(" 1 x",x,"_",v)
-        end
-        println(" >= 1 ;")
-        for v in rv
-            print(" -1 x",x,"_",v)
-        end
-        println(" >= -1 ;")
-    end
-    for v in rv
+    open(string(path,"test.opb"),"w") do f
+        write(f,string("* #variable= ",ubx," #constraint= ",nboolctr,"\n"))
         for x in rx
-            print(" -1 x",x,"_",v)
+            for v in rv
+                write(f,string(" 1 x",x,"_",v))
+            end
+            write(f,string(" >= 1 ;\n"))
+            for v in rv
+                write(f,string(" -1 x",x,"_",v))
+            end
+            write(f,string(" >= -1 ;\n"))
         end
-        println(" >= -1 ;")
-    end
-    for x in rx, v in rv, xx in Apatt[x]
-        print(" 1 ~x",x,"_",v)
-        for vv in Agraph[v]
-            print(" 1 x",xx,"_",vv)
+        for v in rv
+            for x in rx
+                write(f,string(" -1 x",x,"_",v))
+            end
+            write(f,string(" >= -1 ;\n"))
         end
-        println(" >= 1 ;")
+        for x in rx, v in rv, xx in Apatt[x]
+            write(f,string(" 1 ~x",x,"_",v))
+            for vv in Agraph[v]
+                write(f,string(" 1 x",xx,"_",vv))
+            end
+            write(f,string(" >= 1 ;\n"))
+        end
     end
 end
-
 writeopb()
 
 
@@ -169,6 +184,7 @@ writeopb()
 
 
 #= 
+veripb --trace --useColor test.opb test.pbp
 restart RELP  alt j alt r
 union ∪
 intersect ∩

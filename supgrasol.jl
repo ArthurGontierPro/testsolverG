@@ -21,15 +21,17 @@ Agraph = adjarr(graph,ubv)                  # neighbors into graph
 function strat()                            # dumb strat to get next var to fix
     global x
     while x<=ubx if length(vars[x])==1 x+=1 else return true end end 
-    return false end
+    return false 
+end
+
 function bb()
     if !filter() return false end           # call filtering
     if !strat() return true end             # all vars have values
-    awake[x] = true
     tmpvar = deepcopy(vars[x])
     for v in tmpvar                         # try to fix all values
         println(" try ",x,"=",v)
         vars[x] = Set([v])
+        awake[x] = true
         if !bb()                            # recurcive call fo fix next var
             vars[x] = tmpvar
             v+=1

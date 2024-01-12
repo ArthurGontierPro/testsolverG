@@ -7,7 +7,6 @@ lbv = 1 ; ubv = 4 ; rv = lbv:ubv
 dom = Set([i for i in rv])
 vars = [copy(dom) for i in rx]              # variable array
 awake = [false for i in rx]                 # awaked state = need to filter
-x = lbx                                     # current variable to be fixed
 function adjarr(g,ub)
     A = [[] for i in 1:ub]
     for (i,j) in g
@@ -18,26 +17,32 @@ function adjarr(g,ub)
 end
 Apatt = adjarr(patt,ubx)                    # neighbors into pattern
 Agraph = adjarr(graph,ubv)                  # neighbors into graph
-function strat()                            # dumb strat to get next var to fix
-    global x
-    while x<=ubx if length(vars[x])==1 x+=1 else return true end end 
-    return false 
+function strat(x)                            # dumb strat to get next var to fix
+    while x<=ubx if length(vars[x])==1 x+=1 else return x end end 
+    return ubx+1
 end
 
-function bb()
+function bb(x,path)
+    global vars,awake
+    save = deepcopy((vars,awake))           # make a save of state
     if !filter() return false end           # call filtering
-    if !strat() return true end             # all vars have values
+    x = strat(x)
+    if x>ubx return true end                # all vars have values
     tmpvar = deepcopy(vars[x])
+    push!(path,(0,0))
     for v in tmpvar                         # try to fix all values
         println(" try ",x,"=",v)
         vars[x] = Set([v])
         awake[x] = true
-        if !bb()                            # recurcive call fo fix next var
-            vars[x] = tmpvar
-            v+=1
+        path[end] = (x,v)
+        if !bb(x,path)                      # recurcive call fo fix next var
+            printrup(path)
+            vars[x] = copy(tmpvar)
         else return true end                # we find a solution with this val
     end
+    pop!(path)
     awake[x] = false
+    vars,awake = save               # revert state if filter fails
     return false                            # no values are valid
 end
 
@@ -78,17 +83,14 @@ function filter()                           # call filtering algorithms
     global vars,awake
     printvars()
     print(" filtering ")
-    save = deepcopy((vars,awake))           # make a save of state
     while any(x->x,awake)
         x = findfirst(x->x,awake)
         if length(vars[x]) == 1
             if !filterneq(x,first(vars[x])) # call filtering algorithms
-                vars,awake = save           # revert state if filter fails
                 println("failed")
                 return false 
             end
             if !filterimp(x,first(vars[x])) # call filtering algorithms
-                vars,awake = save           # revert state if filter fails
                 println("failed")
                 return false 
             end
@@ -109,8 +111,15 @@ function printvars()
     println()
 end
 
+function printrup(path)
+    for (x,v) in path
+        print(" 1 ~x",x,"_",v)
+    end
+    println(" >= 1 ;")
+end
+
 println("==========================")
-if bb() 
+if bb(lbx,[]) 
     println("\n Yay a solutions !")
     for x in rx
         println("    X",x,"=", first(vars[x]))

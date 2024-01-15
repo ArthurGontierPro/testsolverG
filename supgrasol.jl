@@ -17,8 +17,9 @@ function adjarr(g,ub)
 end
 Apatt = adjarr(patt,ubx)                    # neighbors into pattern
 Agraph = adjarr(graph,ubv)                  # neighbors into graph
-nboolctr = 2*ubx+ubv+ubv*sum([length(i) for i in Apatt])
+idstore = []                                # store the id constraints in a "reasonable" way
 idctr = nboolctr
+nboolctr = 2*ubx+ubv+ubv*sum([length(i) for i in Apatt])
 function strat(x)                           # dumb strat to get next var to fix
     while x<=ubx if length(vars[x])==1 x+=1 else return x end end 
     return ubx+1
@@ -27,7 +28,7 @@ end
 function bb(x,path,f)
     global vars,awake
     save = deepcopy((vars,awake))           # make a save of state
-    if !filter() return false end           # call filtering
+    if !filter(f) return false end           # call filtering
     x = strat(x)
     if x>ubx return true end                # all vars have values
     tmpvar = deepcopy(vars[x])
@@ -64,7 +65,7 @@ function filterimp(x,v)                     # filter the neighborhoods values
     end
     return true
 end
-function filterneq(x,v)
+function filterneq(x,v)                     # filter overlaping nodes
     # println("   neq  ",v)
     for n in rx
         if n!=x 
@@ -80,17 +81,41 @@ function filterneq(x,v)
     end
     return true
 end
-
-function filter()
+function filtercard(x,v)                    # filter the node cardinal
+    # println("   #",x," <= #",v)
+    xn = Apatt[x]                           # get neighbors in pattern
+    vn = Agraph[v]                          # get neighbors in graph
+    return length(xn)<=length(vn)
+end
+function writepolcard(x,v,f)
+    global idctr+=1
+    write(f,string("p ",idstore[4][x][v][1]," "))
+    for i in idstore[4][x][v][2:end]
+        write(f,string(i," + "))
+    end
+    for n in Agraph[v]
+        write(f,string(idstore[3][n]," + "))
+    end
+    write(f,string("0\n"))
+    write(f,string("j ",idctr," 1 ~x",x,"_",v," >= 1 ;\n"))
+    global idctr+=1
+end
+function filter(f)
     print(" filtering ")
     while any(x->x,awake)
         x = findfirst(x->x,awake)
         if length(vars[x]) == 1
-            if !filterneq(x,first(vars[x])) # call filtering algorithms
+            v = first(vars[x])
+            if !filtercard(x,v)             # call filtering algorithms
+                println("failed")
+                writepolcard(x,v,f)
+                return false 
+            end
+            if !filterneq(x,v)              # call filtering algorithms
                 println("failed")
                 return false 
             end
-            if !filterimp(x,first(vars[x])) # call filtering algorithms
+            if !filterimp(x,v)              # call filtering algorithms
                 println("failed")
                 return false 
             end
@@ -100,7 +125,6 @@ function filter()
     println("passed")
     return true
 end
-
 function printvars()
     println()
     for x in rx
@@ -109,7 +133,6 @@ function printvars()
     end 
     println()
 end
-
 function writerup(path,f)
     global idctr+=1
     write(f,string("u"))
@@ -124,7 +147,43 @@ function printrup(path)
     end
     println(" >= 1 ;")
 end
+function writeopb()
+    open(string(path,"test.opb"),"w") do f
+        write(f,string("* #variable= ",ubx," #constraint= ",nboolctr,"\n"))
+        for x in rx
+            for v in rv
+                write(f,string(" 1 x",x,"_",v))
+            end
+            write(f,string(" >= 1 ;\n"))
+            for v in rv
+                write(f,string(" -1 x",x,"_",v))
+            end
+            write(f,string(" >= -1 ;\n"))
+        end
+        push!(idstore,[i for i in 1:ubx],[i+ubx for i in 1:ubx])
+        nid = 2ubx
+        for v in rv
+            for x in rx
+                write(f,string(" -1 x",x,"_",v))
+            end
+            write(f,string(" >= -1 ;\n"))
+        end
+        push!(idstore,[i+nid for i in 1:ubv])
+        nid+= ubv
+        push!(idstore,[[[] for v in rv] for i in rx])
+        for x in rx, xx in Apatt[x], v in rv
+            write(f,string(" 1 ~x",x,"_",v))
+            for vv in Agraph[v]
+                write(f,string(" 1 x",xx,"_",vv))
+            end
+            write(f,string(" >= 1 ;\n"))
+            nid+= 1
+            push!(idstore[4][x][v],nid)
+        end
+    end
+end
 
+writeopb()
 path = "\\\\wsl.localhost\\Ubuntu\\home\\arthur_gla\\veriPB\\testsolver\\"
 println("==========================")
 open(string(path,"test.pbp"),"w") do f
@@ -142,35 +201,6 @@ open(string(path,"test.pbp"),"w") do f
     end
 end
 
-function writeopb()
-    open(string(path,"test.opb"),"w") do f
-        write(f,string("* #variable= ",ubx," #constraint= ",nboolctr,"\n"))
-        for x in rx
-            for v in rv
-                write(f,string(" 1 x",x,"_",v))
-            end
-            write(f,string(" >= 1 ;\n"))
-            for v in rv
-                write(f,string(" -1 x",x,"_",v))
-            end
-            write(f,string(" >= -1 ;\n"))
-        end
-        for v in rv
-            for x in rx
-                write(f,string(" -1 x",x,"_",v))
-            end
-            write(f,string(" >= -1 ;\n"))
-        end
-        for x in rx, v in rv, xx in Apatt[x]
-            write(f,string(" 1 ~x",x,"_",v))
-            for vv in Agraph[v]
-                write(f,string(" 1 x",xx,"_",vv))
-            end
-            write(f,string(" >= 1 ;\n"))
-        end
-    end
-end
-writeopb()
 
 
 

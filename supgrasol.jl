@@ -18,8 +18,8 @@ end
 Apatt = adjarr(patt,ubx)                    # neighbors into pattern
 Agraph = adjarr(graph,ubv)                  # neighbors into graph
 idstore = []                                # store the id constraints in a "reasonable" way
-idctr = nboolctr
 nboolctr = 2*ubx+ubv+ubv*sum([length(i) for i in Apatt])
+idctr = nboolctr
 function strat(x)                           # dumb strat to get next var to fix
     while x<=ubx if length(vars[x])==1 x+=1 else return x end end 
     return ubx+1
@@ -48,7 +48,9 @@ function bb(x,path,f)
     vars,awake = save                       # revert state if filter fails
     return false                            # no values are valid
 end
-
+# function filteralldiff()
+#     for 
+# end
 function filterimp(x,v)                     # filter the neighborhoods values
     # println("   ",x," -> ",v)
     xn = Apatt[x]                           # get neighbors in pattern
@@ -106,11 +108,11 @@ function filter(f)
         x = findfirst(x->x,awake)
         if length(vars[x]) == 1
             v = first(vars[x])
-            if !filtercard(x,v)             # call filtering algorithms
-                println("failed")
-                writepolcard(x,v,f)
-                return false 
-            end
+            # if !filtercard(x,v)             # call filtering algorithms
+            #     println("failed")
+            #     writepolcard(x,v,f)
+            #     return false 
+            # end
             if !filterneq(x,v)              # call filtering algorithms
                 println("failed")
                 return false 
@@ -200,15 +202,6 @@ open(string(path,"test.pbp"),"w") do f
         write(f,string("c ",idctr+1))
     end
 end
-
-
-
-
-
-
-
-
-
 
 
 
